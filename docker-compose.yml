@@ -1,0 +1,54 @@
+version: '3.8'
+
+networks:
+  ai_mesh:
+    driver: bridge
+
+services:
+  # 1. Centralized MLflow Tracking Server Backend
+  mlflow_server:
+    image: python:3.10-slim
+    container_name: mlflow_tracking_server
+    networks:
+      - ai_mesh
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./mlruns:/mlflow/mlruns
+    environment:
+      - BACKEND_URI=sqlite:////mlflow/mlruns/mlflow.db
+    command: >
+      sh -c "pip install mlflow && 
+             mlflow server \
+             --backend-store-uri sqlite:////mlflow/mlruns/mlflow.db \
+             --default-artifact-root /mlflow/mlruns \
+             --host 0.0.0.0 \
+             --port 5000"
+
+  # 2. Automated Training Pipeline Worker
+  training_pipeline:
+    build:
+      context: .
+      dockerfile: pipeline/Dockerfile.pipeline
+    container_name: training_pipeline_worker
+    networks:
+      - ai_mesh
+    environment:
+      - MLFLOW_TRACKING_URI=http://mlflow_server:5000
+    depends_on:
+      - mlflow_server
+
+  # 3. Live Production Inference REST API Endpoint
+  inference_api:
+    build:
+      context: .
+      dockerfile: server/Dockerfile.server
+    container_name: production_inference_api
+    networks:
+      - ai_mesh
+    ports:
+      - "8000:8000"
+    environment:
+      - MLFLOW_TRACKING_URI=http://mlflow_server:5000
+    depends_on:
+      - mlflow_server
