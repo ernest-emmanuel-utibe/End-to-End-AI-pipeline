@@ -2,9 +2,9 @@ name: Production AI Pipeline CI/CD Mesh
 
 on:
   push:
-    branches: [ main ]
+    branches: [ master ]
   pull_request:
-    branches: [ main ]
+    branches: [ master ]
 
 jobs:
   validate-and-test:
@@ -31,7 +31,7 @@ jobs:
 
   build-and-push-images:
     needs: validate-and-test
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository Code
